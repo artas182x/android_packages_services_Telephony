@@ -1,0 +1,154 @@
+diff a/src/com/android/phone/PhoneInterfaceManager.java b/src/com/android/phone/PhoneInterfaceManager.java	(rejected hunks)
+@@ -130,11 +130,12 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+     AppOpsManager mAppOps;
+     MainThreadHandler mMainThreadHandler;
+ 
+-    SharedPreferences carrierPrivilegeConfigs;
+-    private static final String PREF_CARRIERS_ALPHATAG_PREFIX = "carrier_alphtag_";
+-    private static final String PREF_CARRIERS_NUMBER_PREFIX = "carrier_number_";
+-    private static final String PREF_CARRIERS_SIMPLIFIED_NETWORK_SETTINGS_PREFIX =
+-            "carrier_simplified_network_settings_";
++    /**
++     * Indicates if Android should display a simplified Mobile Network Settings UI in a specific
++     * subscription.
++     */
++    Set<Long> mSimplifiedNetworkSettings;
++    Map<Long, AdnRecord> mAdnRecordsForDisplay;
+ 
+     /**
+      * A request object to use for transmitting data to an ICC.
+@@ -692,10 +693,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+         mApp = app;
+         mPhone = phone;
+         mCM = PhoneGlobals.getInstance().mCM;
++        mSimplifiedNetworkSettings = new HashSet<Long>();
+         mAppOps = (AppOpsManager)app.getSystemService(Context.APP_OPS_SERVICE);
+         mMainThreadHandler = new MainThreadHandler();
+-        carrierPrivilegeConfigs =
+-                PreferenceManager.getDefaultSharedPreferences(mPhone.getContext());
++        mAdnRecordsForDisplay = new HashMap<Long, AdnRecord>();
+         publish();
+     }
+ 
+@@ -1909,94 +1910,56 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+             mPhone.getContext().getPackageManager(), intent);
+     }
+ 
+-    private String getIccId(long subId) {
+-        UiccCard card = getPhone(subId).getUiccCard();
+-        if (card == null) {
+-            loge("getIccId: No UICC");
+-            return null;
+-        }
+-        String iccId = card.getIccId();
+-        if (TextUtils.isEmpty(iccId)) {
+-            loge("getIccId: ICC ID is null or empty.");
+-            return null;
+-        }
+-        return iccId;
+-    }
+-
+     @Override
+     public void enableSimplifiedNetworkSettingsForSubscriber(long subId, boolean enable) {
+         enforceModifyPermissionOrCarrierPrivilege();
+ 
+-        String iccId = getIccId(subId);
+-        if (iccId != null) {
+-            String snsPrefKey = PREF_CARRIERS_SIMPLIFIED_NETWORK_SETTINGS_PREFIX + iccId;
+-            SharedPreferences.Editor editor = carrierPrivilegeConfigs.edit();
+-            if (enable) {
+-                editor.putBoolean(snsPrefKey, true);
+-            } else {
+-                editor.remove(snsPrefKey);
+-            }
+-            editor.commit();
++       if (enable) {
++            mSimplifiedNetworkSettings.add(subId);
++        } else {
++            mSimplifiedNetworkSettings.remove(subId);
+         }
+     }
+ 
+     @Override
+     public boolean getSimplifiedNetworkSettingsEnabledForSubscriber(long subId) {
+         enforceReadPermission();
+-        String iccId = getIccId(subId);
+-        if (iccId != null) {
+-            String snsPrefKey = PREF_CARRIERS_SIMPLIFIED_NETWORK_SETTINGS_PREFIX + iccId;
+-            return carrierPrivilegeConfigs.getBoolean(snsPrefKey, false);
+-        }
+-        return false;
++        return mSimplifiedNetworkSettings.contains(subId);
+     }
+ 
+     @Override
+     public void setLine1NumberForDisplayForSubscriber(long subId, String alphaTag, String number) {
+         enforceModifyPermissionOrCarrierPrivilege();
+ 
+-        String iccId = getIccId(subId);
+-        if (iccId != null) {
+-            String alphaTagPrefKey = PREF_CARRIERS_ALPHATAG_PREFIX + iccId;
+-            SharedPreferences.Editor editor = carrierPrivilegeConfigs.edit();
+-            if (alphaTag == null) {
+-                editor.remove(alphaTagPrefKey);
+-            } else {
+-                editor.putString(alphaTagPrefKey, alphaTag);
+-            }
+-
+-            String numberPrefKey = PREF_CARRIERS_NUMBER_PREFIX + iccId;
+-            if (number == null) {
+-                editor.remove(numberPrefKey);
+-            } else {
+-                editor.putString(numberPrefKey, number);
+-            }
+-            editor.commit();
+-        }
++       mAdnRecordsForDisplay.put(subId, new AdnRecord(alphaTag, number));
+     }
+ 
+     @Override
+     public String getLine1NumberForDisplay(long subId) {
+         enforceReadPermission();
+ 
+-        String iccId = getIccId(subId);
+-        if (iccId != null) {
+-            String numberPrefKey = PREF_CARRIERS_NUMBER_PREFIX + iccId;
+-            return carrierPrivilegeConfigs.getString(numberPrefKey, null);
++   if (!mAdnRecordsForDisplay.containsKey(subId)) {
++            return null;
++        }
++        AdnRecord adnRecord = mAdnRecordsForDisplay.get(subId);
++        if (adnRecord.getNumber() == null || adnRecord.getNumber().isEmpty()) {
++            return null;
+         }
+-        return null;
++        return adnRecord.getNumber();
+     }
+ 
+     @Override
+     public String getLine1AlphaTagForDisplay(long subId) {
+         enforceReadPermission();
+ 
+-        String iccId = getIccId(subId);
+-        if (iccId != null) {
+-            String alphaTagPrefKey = PREF_CARRIERS_ALPHATAG_PREFIX + iccId;
+-            return carrierPrivilegeConfigs.getString(alphaTagPrefKey, null);
++        if (!mAdnRecordsForDisplay.containsKey(subId)) {
++            return null;
++        }
++        AdnRecord adnRecord = mAdnRecordsForDisplay.get(subId);
++        if (adnRecord.getAlphaTag() == null || adnRecord.getAlphaTag().isEmpty()) {
++            return null;
+         }
+-        return null;
++        return adnRecord.getAlphaTag();
+     }
+ 
+     @Override
+@@ -2036,4 +1999,4 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+ 
+         return returnValue;
+     }
+-}
++}
+\ No newline at end of file
