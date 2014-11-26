@@ -69,6 +69,7 @@ final class TelecomAccountRegistry {
         private final PstnIncomingCallNotifier mIncomingCallNotifier;
 
         AccountEntry(Phone phone, boolean isEmergency, boolean isDummy) {
+            isEmergency = false;
             mPhone = phone;
             mAccount = registerPstnPhoneAccount(isEmergency, isDummy);
             Log.d(this, "Registered phoneAccount: %s with handle: %s",
@@ -85,6 +86,7 @@ final class TelecomAccountRegistry {
          */
         private PhoneAccount registerPstnPhoneAccount(boolean isEmergency, boolean isDummyAccount) {
             String dummyPrefix = isDummyAccount ? "Dummy " : "";
+               isEmergency = false;
 
             // Build the Phone account handle.
             PhoneAccountHandle phoneAccountHandle =
@@ -252,11 +254,12 @@ final class TelecomAccountRegistry {
 
     private static PhoneAccountHandle makePstnPhoneAccountHandleWithPrefix(
             Phone phone, String prefix, boolean isEmergency) {
+        isEmergency = false;
         ComponentName pstnConnectionServiceName =
                 new ComponentName(phone.getContext(), TelephonyConnectionService.class);
         // TODO: Should use some sort of special hidden flag to decorate this account as
         // an emergency-only account
-        String id = isEmergency ? "E" : prefix + String.valueOf(phone.getSubId());
+        String id = prefix + String.valueOf(phone.getSubId());
         return new PhoneAccountHandle(pstnConnectionServiceName, id);
     }
 
