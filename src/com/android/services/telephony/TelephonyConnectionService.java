@@ -134,14 +134,11 @@ public class TelephonyConnectionService extends ConnectionService {
 
         int state = phone.getServiceState().getState();
         boolean useEmergencyCallHelper = false;
-        boolean ForceCalling = true;
+
         if (isEmergencyNumber) {
             if (state == ServiceState.STATE_POWER_OFF) {
                 useEmergencyCallHelper = true;
             }
-         else if (ForceCalling) {
-                useEmergencyCallHelper = false;
-           } 
         } else {
             switch (state) {
                 case ServiceState.STATE_IN_SERVICE:
@@ -178,7 +175,7 @@ public class TelephonyConnectionService extends ConnectionService {
         connection.setInitializing();
         connection.setVideoState(request.getVideoState());
 
-        if (isEmergencyNumber) {
+        if (useEmergencyCallHelper) {
             if (mEmergencyCallHelper == null) {
                 mEmergencyCallHelper = new EmergencyCallHelper(this);
             }
